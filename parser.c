@@ -1,4 +1,4 @@
-#include <shell.c>
+#include <shell_functions.c>
 
 parseInfo* parse(char* input) {
   parseInfo* info = malloc(sizeof(parseInfo));
