@@ -28,7 +28,9 @@ typedef struct {
 
 // פונקציות לניתוח פקודות
 char* readCommand();
+char* readline(const char* prompt);  // הוספת הפונקציה כדי להתאים לקריאה ב-main.c
 parseInfo* parseCommand(char* cmdLine);
+parseInfo* parse(char* cmdLine);     // הוספת הפונקציה כדי להתאים לקריאה ב-main.c
 void freeParseInfo(parseInfo* info);
 
 // פונקציות לביצוע פקודות
