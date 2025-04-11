@@ -1,11 +1,12 @@
 #include "shell.h"
+#include <readline/readline.h>
+#include <readline/history.h>
 
-
-// קריאת פקודה מהמשתמש
+// קריאת פקודה מהמשתמש (מימוש של readline)
 char* readCommand() {
     char* buffer = NULL;
     size_t bufsize = 0;
-    getline(&buffer, &bufsize, stdin); //בעזרת זה קוראת מהמשתמש ומחזירה את הפקודה כמחרוזת
+    getline(&buffer, &bufsize, stdin);
     
     // הסרת תו שורה חדשה
     if (buffer[strlen(buffer) - 1] == '\n') {
@@ -13,6 +14,13 @@ char* readCommand() {
     }
     
     return buffer;
+}
+
+// מימוש של פונקציית readline כדי להתאים לקריאה ב-main.c
+char* readline(const char* prompt) {
+    printf("%s", prompt);
+    fflush(stdout);
+    return readCommand();
 }
 
 // פירוק הפקודה לארגומנטים
@@ -97,6 +105,11 @@ parseInfo* parseCommand(char* cmdLine) {
     info->args[info->argCount] = NULL;
     
     return info;
+}
+
+// מימוש הפונקציה parse כדי להתאים לקריאה ב-main.c
+parseInfo* parse(char* cmdLine) {
+    return parseCommand(cmdLine);
 }
 
 // שחרור זיכרון של מבנה parseInfo
