@@ -17,7 +17,7 @@ int main (int argc, char **argv) {
         } 
         else {  
             /* parent code */ 
-            waitpid(childPid);          
+            waitpid(childPid);       
         }   
     }  
 } 
