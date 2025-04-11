@@ -224,8 +224,8 @@ int executePipedCommand(parseInfo* info) {
     // תהליך האב
     close(pipefd[0]);
     close(pipefd[1]);
-    waitpid(pid1, NULL, 0);
-    waitpid(pid2, NULL, 0);
+    waitpid(pid1);
+    waitpid(pid2);
     
     return 1;
 }
@@ -256,7 +256,7 @@ int executeExternalCommand(parseInfo* info) {
     } else {
         // תהליך האב
         int status;
-        waitpid(pid, &status, 0);
+        waitpid(pid);
         return 1;
     }
 }
@@ -324,4 +324,4 @@ void print_tree(const char* path, int level) {
     }
     
     closedir(dir);
-}s
+}
