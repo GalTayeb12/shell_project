@@ -5,7 +5,7 @@
 char* readCommand() {
     char* buffer = NULL;
     size_t bufsize = 0;
-    getline(&buffer, &bufsize, stdin);
+    getline(&buffer, &bufsize, stdin); //בעזרת זה קוראת מהמשתמש ומחזירה את הפקודה כמחרוזת
     
     // הסרת תו שורה חדשה
     if (buffer[strlen(buffer) - 1] == '\n') {

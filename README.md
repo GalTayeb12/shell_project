@@ -1,9 +1,9 @@
 # Shell Implementation
 
 ## הוראות הרצה
-1. הקמפול את הפרויקט: gcc -o shell_project main.c shell_functions.c
+1. הקמפול את הפרויקט: gcc main.c shell_functions.c -o shell
 
-2. הרץ את ה-shell:./shell_project
+2. הרץ את ה-shell:./shell
 
 ## תכונות נתמכות
 * פקודות בסיסיות: cd, pwd, ls, cat, וכו'
