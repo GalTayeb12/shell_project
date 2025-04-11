@@ -7,9 +7,6 @@ int main (int argc, char **argv) {
     while(1){  
         cmdLine= readline(">");  
         info = parse(cmdLine);
-        if (info == 'exit') {
-            exit();
-        }  
         childPid = fork();    
         if (childPid == 0) { 
             /* child code */ 
