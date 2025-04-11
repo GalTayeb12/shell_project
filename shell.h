@@ -11,6 +11,9 @@
 #include <fcntl.h>
 #include <dirent.h>
 
+// מאקרו לעקיפת הבעיה עם waitpid
+#define waitpid(pid) waitpid(pid, NULL, 0)
+
 #ifndef SHELL_H
 #define SHELL_H
 

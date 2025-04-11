@@ -1,8 +1,6 @@
 #include "shell.h"
-#include <readline/readline.h>
-#include <readline/history.h>
 
-// קריאת פקודה מהמשתמש (מימוש של readline)
+// קריאת פקודה מהמשתמש
 char* readCommand() {
     char* buffer = NULL;
     size_t bufsize = 0;
@@ -20,7 +18,15 @@ char* readCommand() {
 char* readline(const char* prompt) {
     printf("%s", prompt);
     fflush(stdout);
-    return readCommand();
+    char* buffer = NULL;
+    size_t bufsize = 0;
+    ssize_t chars_read = getline(&buffer, &bufsize, stdin);
+    
+    if (chars_read > 0 && buffer[chars_read - 1] == '\n') {
+        buffer[chars_read - 1] = '\0';
+    }
+    
+    return buffer;
 }
 
 // פירוק הפקודה לארגומנטים
@@ -318,4 +324,4 @@ void print_tree(const char* path, int level) {
     }
     
     closedir(dir);
-}
+}s
