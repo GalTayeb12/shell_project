@@ -323,29 +323,37 @@ int shellGrep(parseInfo* info) {
     pattern = info->args[pattern_index];
     filename = info->args[pattern_index + 1];
     
-    // קבלת הנתיב המלא של הספרייה הנוכחית
-    char cwd[1024];
-    if (getcwd(cwd, sizeof(cwd)) == NULL) {
-        perror("getcwd");
-        return 1;
-    }
-    
-    // בניית נתיב מלא לקובץ אם הוא לא מתחיל ב-/
-    char fullpath[1024];
-    if (filename[0] != '/') {
-        snprintf(fullpath, sizeof(fullpath), "%s/%s", cwd, filename);
-    } else {
-        strncpy(fullpath, filename, sizeof(fullpath));
-    }
-    
-    // פתיחת הקובץ
-    FILE* file = fopen(fullpath, "r");
+    // ניסיון לפתוח את הקובץ ישירות
+    FILE* file = fopen(filename, "r");
     if (file == NULL) {
-        // ננסה לפתוח שוב עם השם המקורי למקרה שהנתיב הוא יחסי
-        file = fopen(filename, "r");
+        // אם זה נכשל, ננסה לבנות נתיב מלא
+        char cwd[1024];
+        if (getcwd(cwd, sizeof(cwd)) == NULL) {
+            perror("getcwd");
+            return 1;
+        }
+        
+        // בדיקה שאין חריגה מגודל החוצץ
+        size_t cwd_len = strlen(cwd);
+        size_t filename_len = strlen(filename);
+        
+        // נבדוק שיש מספיק מקום (עם / ועם סוף מחרוזת \0)
+        if (cwd_len + filename_len + 2 > 1024) {
+            printf("Path too long: %s/%s\n", cwd, filename);
+            return 1;
+        }
+        
+        // בניית נתיב מלא לקובץ
+        char fullpath[1024];
+        strcpy(fullpath, cwd);
+        strcat(fullpath, "/");
+        strcat(fullpath, filename);
+        
+        // ניסיון לפתוח עם נתיב מלא
+        file = fopen(fullpath, "r");
         if (file == NULL) {
             perror("fopen");
-            printf("Failed to open file: %s or %s\n", fullpath, filename);
+            printf("Failed to open file: %s\n", fullpath);
             return 1;
         }
     }
