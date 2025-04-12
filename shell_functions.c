@@ -44,8 +44,6 @@ parseInfo* parseCommand(char* cmdLine) {
         return info;
     }
     
-    char* token;
-    char* rest = cmdLine;
     int capacity = 10;
     info->args = malloc(capacity * sizeof(char*));
     
@@ -57,6 +55,8 @@ parseInfo* parseCommand(char* cmdLine) {
         char* pipeCmd = pipePos + 1;
         
         // פירוק הפקודה השנייה (אחרי הצינור)
+        // כאן צריך לשכפל את הלוגיקה החדשה לטיפול במרכאות
+        // אבל לפשטות נשאיר את זה כרגע
         info->pipeArgs = malloc(capacity * sizeof(char*));
         char* pipeToken;
         char* pipeRest = pipeCmd;
@@ -80,26 +80,106 @@ parseInfo* parseCommand(char* cmdLine) {
         info->pipeArgs[info->pipeArgCount] = NULL;
     }
     
-    // פירוק הפקודה הראשונה
-    while ((token = strtok_r(rest, " \t", &rest))) {
-        if (strcmp(token, ">") == 0) {
-            // הפניית פלט
+    // פירוק הפקודה הראשונה עם תמיכה במרכאות
+    char* current = cmdLine;
+    int i = 0;
+    int len = strlen(cmdLine);
+    
+    while (i < len) {
+        // דילוג על רווחים
+        while (i < len && (cmdLine[i] == ' ' || cmdLine[i] == '\t')) {
+            i++;
+        }
+        
+        if (i >= len) break;  // הגענו לסוף המחרוזת
+        
+        // בדיקה אם זה תו הפניית פלט
+        if (cmdLine[i] == '>') {
             info->hasRedirection = 1;
-            token = strtok_r(rest, " \t", &rest);
-            if (token) {
-                info->outputFile = strdup(token);
+            i++;  // התקדמות מעבר לתו '>'
+            
+            // דילוג על רווחים
+            while (i < len && (cmdLine[i] == ' ' || cmdLine[i] == '\t')) {
+                i++;
             }
-            break;
+            
+            if (i < len) {
+                // קריאת שם הקובץ
+                int start = i;
+                
+                if (cmdLine[i] == '"' || cmdLine[i] == '\'') {
+                    char quote = cmdLine[i];
+                    i++;  // דילוג על המרכאה הפותחת
+                    start = i;
+                    
+                    // חיפוש המרכאה הסוגרת
+                    while (i < len && cmdLine[i] != quote) {
+                        i++;
+                    }
+                    
+                    cmdLine[i] = '\0';  // סיום המחרוזת במרכאה הסוגרת
+                    info->outputFile = strdup(&cmdLine[start]);
+                    i++;  // דילוג על המרכאה הסוגרת
+                } else {
+                    // שם קובץ ללא מרכאות
+                    while (i < len && cmdLine[i] != ' ' && cmdLine[i] != '\t') {
+                        i++;
+                    }
+                    
+                    char temp = cmdLine[i];
+                    cmdLine[i] = '\0';  // סיום המחרוזת זמנית
+                    info->outputFile = strdup(&cmdLine[start]);
+                    cmdLine[i] = temp;  // שחזור התו המקורי
+                }
+            }
+            
+            break;  // סיום העיבוד אחרי הפניית הפלט
         }
         
-        if (info->argCount >= capacity) {
-            capacity *= 2;
-            info->args = realloc(info->args, capacity * sizeof(char*));
-        }
-        
-        // התעלמות מרווחים מיותרים
-        if (strlen(token) > 0) {
-            info->args[info->argCount++] = strdup(token);
+        // בדיקה אם זה ארגומנט עם מרכאות
+        if (cmdLine[i] == '"' || cmdLine[i] == '\'') {
+            char quote = cmdLine[i];
+            i++;  // דילוג על המרכאה הפותחת
+            int start = i;
+            
+            // חיפוש המרכאה הסוגרת
+            while (i < len && cmdLine[i] != quote) {
+                i++;
+            }
+            
+            if (i < len) {
+                cmdLine[i] = '\0';  // סיום המחרוזת במרכאה הסוגרת
+                
+                if (info->argCount >= capacity) {
+                    capacity *= 2;
+                    info->args = realloc(info->args, capacity * sizeof(char*));
+                }
+                
+                info->args[info->argCount++] = strdup(&cmdLine[start]);
+                i++;  // דילוג על המרכאה הסוגרת
+            }
+        } else {
+            // ארגומנט רגיל ללא מרכאות
+            int start = i;
+            
+            while (i < len && cmdLine[i] != ' ' && cmdLine[i] != '\t' && cmdLine[i] != '>') {
+                i++;
+            }
+            
+            char temp = cmdLine[i];
+            cmdLine[i] = '\0';  // סיום המחרוזת זמנית
+            
+            if (info->argCount >= capacity) {
+                capacity *= 2;
+                info->args = realloc(info->args, capacity * sizeof(char*));
+            }
+            
+            info->args[info->argCount++] = strdup(&cmdLine[start]);
+            cmdLine[i] = temp;  // שחזור התו המקורי
+            
+            if (temp == '>') {
+                i--;  // חזרה אחורה כדי שהלולאה הבאה תזהה את תו '>'
+            }
         }
     }
     
