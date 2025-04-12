@@ -1,6 +1,6 @@
 #include "shell.h"
 
-// קריאת פקודה מהמשתמש
+//Reading a command from the user
 char* readCommand() {
     char* buffer = NULL;
     size_t bufsize = 0;
@@ -14,7 +14,6 @@ char* readCommand() {
     return buffer;
 }
 
-// מימוש של פונקציית readline כדי להתאים לקריאה ב-main.c
 char* readline(const char* prompt) {
     printf("%s", prompt);
     fflush(stdout);
@@ -29,7 +28,7 @@ char* readline(const char* prompt) {
     return buffer;
 }
 
-// פירוק הפקודה לארגומנטים
+// Breaking a command into arguments
 parseInfo* parseCommand(char* cmdLine) {
     parseInfo* info = malloc(sizeof(parseInfo));
     info->args = NULL;
@@ -47,16 +46,13 @@ parseInfo* parseCommand(char* cmdLine) {
     int capacity = 10;
     info->args = malloc(capacity * sizeof(char*));
     
-    // בדיקה האם קיים צינור
+    // check about a pipe   
     char* pipePos = strchr(cmdLine, '|');
     if (pipePos != NULL) {
         info->hasPipe = 1;
-        *pipePos = '\0';  // מפריד את החלק הראשון
+        *pipePos = '\0';  // Separation of the first part  
         char* pipeCmd = pipePos + 1;
         
-        // פירוק הפקודה השנייה (אחרי הצינור)
-        // כאן צריך לשכפל את הלוגיקה החדשה לטיפול במרכאות
-        // אבל לפשטות נשאיר את זה כרגע
         info->pipeArgs = malloc(capacity * sizeof(char*));
         char* pipeToken;
         char* pipeRest = pipeCmd;
@@ -66,13 +62,13 @@ parseInfo* parseCommand(char* cmdLine) {
                 info->pipeArgs = realloc(info->pipeArgs, capacity * sizeof(char*));
             }
             
-            // התעלמות מרווחים מיותרים
+            // Ignoring spaces  
             if (strlen(pipeToken) > 0) {
                 info->pipeArgs[info->pipeArgCount++] = strdup(pipeToken);
             }
         }
         
-        // הוספת NULL בסוף המערך
+        // Adding a Null value to the end of the array 
         if (info->pipeArgCount >= capacity) {
             capacity += 1;
             info->pipeArgs = realloc(info->pipeArgs, capacity * sizeof(char*));
@@ -80,75 +76,74 @@ parseInfo* parseCommand(char* cmdLine) {
         info->pipeArgs[info->pipeArgCount] = NULL;
     }
     
-    // פירוק הפקודה הראשונה עם תמיכה במרכאות
+    // Decompose the first command with quotation mark support
     char* current = cmdLine;
     int i = 0;
     int len = strlen(cmdLine);
     
     while (i < len) {
-        // דילוג על רווחים
+        // Skipping spaces  
         while (i < len && (cmdLine[i] == ' ' || cmdLine[i] == '\t')) {
             i++;
         }
         
-        if (i >= len) break;  // הגענו לסוף המחרוזת
+        if (i >= len) break;  
         
-        // בדיקה אם זה תו הפניית פלט
+        // Check if this is an output redirection character
         if (cmdLine[i] == '>') {
             info->hasRedirection = 1;
-            i++;  // התקדמות מעבר לתו '>'
+            i++;  // Progress beyond the '>' character
             
-            // דילוג על רווחים
             while (i < len && (cmdLine[i] == ' ' || cmdLine[i] == '\t')) {
                 i++;
             }
             
             if (i < len) {
-                // קריאת שם הקובץ
+                // read file name  
                 int start = i;
                 
                 if (cmdLine[i] == '"' || cmdLine[i] == '\'') {
                     char quote = cmdLine[i];
-                    i++;  // דילוג על המרכאה הפותחת
+                    i++;  // Skipping the opening quotation mark
                     start = i;
                     
-                    // חיפוש המרכאה הסוגרת
+                    // search the closing quotation mark
                     while (i < len && cmdLine[i] != quote) {
                         i++;
                     }
                     
-                    cmdLine[i] = '\0';  // סיום המחרוזת במרכאה הסוגרת
+                    cmdLine[i] = '\0';  // finish string in closing quotation mark 
                     info->outputFile = strdup(&cmdLine[start]);
-                    i++;  // דילוג על המרכאה הסוגרת
+                    i++;  // Skipping the closing quotation mark
                 } else {
-                    // שם קובץ ללא מרכאות
+                    // file name without quotations 
                     while (i < len && cmdLine[i] != ' ' && cmdLine[i] != '\t') {
                         i++;
                     }
                     
                     char temp = cmdLine[i];
-                    cmdLine[i] = '\0';  // סיום המחרוזת זמנית
+                    cmdLine[i] = '\0';  // End of string temporarily
                     info->outputFile = strdup(&cmdLine[start]);
-                    cmdLine[i] = temp;  // שחזור התו המקורי
+                    cmdLine[i] = temp;  // Restoring the original character
                 }
             }
             
-            break;  // סיום העיבוד אחרי הפניית הפלט
+            break;  
         }
         
-        // בדיקה אם זה ארגומנט עם מרכאות
+        // Check if this is an argument with quotes
         if (cmdLine[i] == '"' || cmdLine[i] == '\'') {
             char quote = cmdLine[i];
-            i++;  // דילוג על המרכאה הפותחת
+            i++;  
             int start = i;
             
-            // חיפוש המרכאה הסוגרת
+            
             while (i < len && cmdLine[i] != quote) {
                 i++;
             }
             
             if (i < len) {
-                cmdLine[i] = '\0';  // סיום המחרוזת במרכאה הסוגרת
+                cmdLine[i] = '\0';  
                 
                 if (info->argCount >= capacity) {
                     capacity *= 2;
@@ -156,10 +151,10 @@ parseInfo* parseCommand(char* cmdLine) {
                 }
                 
                 info->args[info->argCount++] = strdup(&cmdLine[start]);
-                i++;  // דילוג על המרכאה הסוגרת
+                i++;  
             }
         } else {
-            // ארגומנט רגיל ללא מרכאות
+            //Regular argument without quotes
             int start = i;
             
             while (i < len && cmdLine[i] != ' ' && cmdLine[i] != '\t' && cmdLine[i] != '>') {
@@ -167,7 +162,7 @@ parseInfo* parseCommand(char* cmdLine) {
             }
             
             char temp = cmdLine[i];
-            cmdLine[i] = '\0';  // סיום המחרוזת זמנית
+            cmdLine[i] = '\0';  // finish temp string
             
             if (info->argCount >= capacity) {
                 capacity *= 2;
@@ -175,15 +170,15 @@ parseInfo* parseCommand(char* cmdLine) {
             }
             
             info->args[info->argCount++] = strdup(&cmdLine[start]);
-            cmdLine[i] = temp;  // שחזור התו המקורי
+            cmdLine[i] = temp;  // Restoring the original character
             
             if (temp == '>') {
-                i--;  // חזרה אחורה כדי שהלולאה הבאה תזהה את תו '>'
+                i--;  //Backtrack so the next loop recognizes the '>' character
             }
         }
     }
     
-    // הוספת NULL בסוף המערך
+    // Adding NULL at the end of the array
     if (info->argCount >= capacity) {
         capacity += 1;
         info->args = realloc(info->args, capacity * sizeof(char*));
@@ -193,16 +188,14 @@ parseInfo* parseCommand(char* cmdLine) {
     return info;
 }
 
-// מימוש הפונקציה parse כדי להתאים לקריאה ב-main.c
+
 parseInfo* parse(char* cmdLine) {
-    // בדיקה מיוחדת לפקודת exit
     if (cmdLine != NULL && strcmp(cmdLine, "exit") == 0) {
-        exit(EXIT_SUCCESS);  // יציאה ישירות מהתוכנית
+        exit(EXIT_SUCCESS);  // Exit directly from the program
     }
     
     parseInfo* info = parseCommand(cmdLine);
     
-    // בדיקה אם זו פקודת cd בשלב הפרסור
     if (info->argCount > 0 && strcmp(info->args[0], "cd") == 0) {
         shellCd(info);
         // מסמן שהפקודה כבר בוצעה
@@ -212,7 +205,7 @@ parseInfo* parse(char* cmdLine) {
     return info;
 }
 
-// שחרור זיכרון של מבנה parseInfo
+// Freeing memory of parseInfo structure
 void freeParseInfo(parseInfo* info) {
     if (info == NULL) {
         return;
@@ -239,40 +232,37 @@ void freeParseInfo(parseInfo* info) {
     free(info);
 }
 
-// ביצוע פקודה מובנית או חיצונית
+// Execute a built-in or external command
 int executeCommand(parseInfo* info) {
     if (info == NULL || info->argCount == 0) {
         return 0;
     }
     
-    // בדיקה האם זו פקודת cd שכבר בוצעה
+    //Checking whether this is a cd command that has already been executed
     if (strcmp(info->args[0], "_CD_EXECUTED_") == 0) {
-        exit(EXIT_SUCCESS);  // סיום התהליך הילד מכיוון שהפקודה כבר בוצעה באב
+        exit(EXIT_SUCCESS);  // End of the child process
     }
     
-    // בדיקה האם זו פקודת exit
     if (info->argCount > 0 && strcmp(info->args[0], "exit") == 0) {
-        exit(EXIT_SUCCESS);  // יציאה מהתוכנית
+        exit(EXIT_SUCCESS);  
     }
     
-    // בדיקה האם זו פקודה מובנית
+    //Checking if this is a built-in command
     if (executeBuiltInCommand(info)) {
-        exit(EXIT_SUCCESS);  // חשוב: יציאה מהתהליך הילד לאחר ביצוע פקודה מובנית
+        exit(EXIT_SUCCESS);  
     }
     
-    // בדיקה האם יש צינור
     if (info->hasPipe) {
         return executePipedCommand(info);
     }
     
-    // אחרת, זו פקודה חיצונית רגילה
     return executeExternalCommand(info);
 }
 
-// ביצוע פקודות מובנות
+// Executing built-in commands
 int executeBuiltInCommand(parseInfo* info) {
     if (strcmp(info->args[0], "exit") == 0) {
-        exit(EXIT_SUCCESS);  // יציאה מהתוכנית
+        exit(EXIT_SUCCESS); 
     } else if (strcmp(info->args[0], "cd") == 0) {
         return shellCd(info);
     } else if (strcmp(info->args[0], "pwd") == 0) {
@@ -290,10 +280,9 @@ int executeBuiltInCommand(parseInfo* info) {
         return shellGrep(info);
     }
     
-    return 0;  // לא פקודה מובנית
+    return 0; 
 }
 
-// ביצוע פקודה עם צינור
 int executePipedCommand(parseInfo* info) {
     int pipefd[2];
     pid_t pid1, pid2;
@@ -305,9 +294,9 @@ int executePipedCommand(parseInfo* info) {
     
     pid1 = fork();
     if (pid1 == 0) {
-        // תהליך ילד ראשון - מוציא לצינור
-        close(pipefd[0]);  // סגירת צד הקריאה
-        dup2(pipefd[1], STDOUT_FILENO);  // הפניית הפלט לצינור
+        //First child process - extubation
+        close(pipefd[0]);  
+        dup2(pipefd[1], STDOUT_FILENO);  //Redirecting the output to a pipe
         close(pipefd[1]);
         
         execvp(info->args[0], info->args);
@@ -317,9 +306,9 @@ int executePipedCommand(parseInfo* info) {
     
     pid2 = fork();
     if (pid2 == 0) {
-        // תהליך ילד שני - קורא מהצינור
-        close(pipefd[1]);  // סגירת צד הכתיבה
-        dup2(pipefd[0], STDIN_FILENO);  // הפניית הקלט מהצינור
+        //Second child process - calling from the pipe
+        close(pipefd[1]);  
+        dup2(pipefd[0], STDIN_FILENO);  //Redirecting the output to a pipe
         close(pipefd[0]);
         
         execvp(info->pipeArgs[0], info->pipeArgs);
@@ -327,7 +316,7 @@ int executePipedCommand(parseInfo* info) {
         exit(EXIT_FAILURE);
     }
     
-    // תהליך האב
+    //The parent process
     close(pipefd[0]);
     close(pipefd[1]);
     waitpid(pid1);
@@ -336,15 +325,15 @@ int executePipedCommand(parseInfo* info) {
     return 1;
 }
 
-// ביצוע פקודה חיצונית רגילה
+//Executing a regular external command
 int executeExternalCommand(parseInfo* info) {
-    // בדיקה אם זה grep כפקודה חיצונית ויש לנו את הפונקציונליות המובנית
+    // Checking if it is grep as an external command and we have the built-in functionality
     if (strcmp(info->args[0], "grep") == 0) {
         return shellGrep(info);
     }
     
     if (info->hasRedirection && info->outputFile != NULL) {
-        // הפניית פלט לקובץ
+        //Redirecting output to a file
         int fd = open(info->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
         if (fd == -1) {
             perror("open");
@@ -359,16 +348,15 @@ int executeExternalCommand(parseInfo* info) {
     exit(EXIT_FAILURE);
 }
 
-// מימוש פקודות מובנות
+//Implementing built-in commands
 
 int shellExit(parseInfo* info) {
-    exit(EXIT_SUCCESS);  // יציאה ישירה מהתוכנית
-    return 1;  // לא יגיע לכאן
+    exit(EXIT_SUCCESS);  
+    return 1;  
 }
 
 int shellCd(parseInfo* info) {
     if (info->argCount < 2) {
-        // ללא פרמטרים, עבור לספריית הבית
         chdir(getenv("HOME"));
     } else if (chdir(info->args[1]) != 0) {
         perror("cd");
@@ -387,38 +375,37 @@ int shellPwd(parseInfo* info) {
 }
 
 int shellClear(parseInfo* info) {
-    printf("\033[H\033[J");  // קוד ANSI לניקוי המסך
+    printf("\033[H\033[J");  // ANSI code for screen cleaningt
     return 1;
 }
 
-// מימוש פקודת grep
 int shellGrep(parseInfo* info) {
-    // בדיקת מספר פרמטרים מינימלי
+    //Checking a minimum number of parameters
     if (info->argCount < 2) {
         printf("Usage: grep [options] pattern filename\n");
         return 1;
     }
     
-    int count_only = 0;  // האם להדפיס רק מספר שורות
+    int count_only = 0;  //Checks whether to print only a few lines
     int current_arg = 1;
     
-    // בדיקה האם נתנו אופציה -c
+    // Check if the -c option exists
     if (strcmp(info->args[current_arg], "-c") == 0) {
         count_only = 1;
         current_arg++;
         
-        // בדיקה שיש מספיק ארגומנטים אחרי האופציה
+        //Checking that there are enough arguments after the option
         if (current_arg + 1 >= info->argCount) {
             printf("Usage: grep -c pattern filename\n");
             return 1;
         }
     }
     
-    // מציאת התבנית ושם הקובץ
+    // Finding the template and file name
     char* pattern = info->args[current_arg];
     current_arg++;
     
-    // ארגומנט אחרון צריך להיות שם הקובץ
+    //Checking that the last argument is the file name
     if (current_arg >= info->argCount) {
         printf("Missing filename argument\n");
         return 1;
@@ -426,7 +413,6 @@ int shellGrep(parseInfo* info) {
     
     char* filename = info->args[current_arg];
     
-    // ניסיון לפתוח את הקובץ
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
         printf("Failed to open file: %s\n", filename);
@@ -434,30 +420,30 @@ int shellGrep(parseInfo* info) {
         return 1;
     }
     
-    // חיפוש בקובץ
+    // search in file
     char line[1024];
     int match_count = 0;
     
     while (fgets(line, sizeof(line), file) != NULL) {
-        // הסרת תו שורה חדשה אם קיים
+        //Remove newline character if present
         size_t len = strlen(line);
         if (len > 0 && line[len - 1] == '\n') {
             line[len - 1] = '\0';
             len--;
         }
         
-        // בדיקה האם השורה מכילה את הדפוס
+        //Checking whether the line contains the pattern
         if (strstr(line, pattern) != NULL) {
             match_count++;
             
-            // אם לא מבקשים רק ספירה, הדפס את השורה
+            // Print a line if there is no request for counting
             if (!count_only) {
                 printf("%s\n", line);
             }
         }
     }
     
-    // אם מבקשים רק ספירה, הדפס את מספר השורות המתאימות
+    // If only a count is requested, print the number of matching lines
     if (count_only) {
         printf("%d\n", match_count);
     }
@@ -466,7 +452,6 @@ int shellGrep(parseInfo* info) {
     return 1;
 }
 
-// מימוש פקודת tree
 void print_tree(const char* path, int level) {
     DIR* dir = opendir(path);
     if (dir == NULL) {
@@ -476,19 +461,17 @@ void print_tree(const char* path, int level) {
     
     struct dirent* entry;
     while ((entry = readdir(dir)) != NULL) {
-        // דילוג על "." ו-".."
         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
             continue;
         }
         
-        // הדפסת רווחים לפי רמת העומק
         for (int i = 0; i < level; i++) {
             printf("    ");
         }
         
         printf("|-- %s\n", entry->d_name);
         
-        // אם זו ספרייה, קרא אותה רקורסיבית
+        // If it's a directory, read it recursively
         if (entry->d_type == DT_DIR) {
             char subpath[1024];
             snprintf(subpath, sizeof(subpath), "%s/%s", path, entry->d_name);

@@ -1,17 +1,25 @@
-# Shell Implementation
+## Getting Started
+## Prerequisites
+    Before building the shell, make sure you have the readline development library installed:
+        bashsudo apt-get install libreadline-dev
+## Building the Project
+* Compile the source code using GCC:
+    bashgcc main.c shell_functions.c -o shell
+* Running the Shell
+Execute the compiled binary:
+    ./shell
 
-## הוראות הרצה
-1. הקמפול את הפרויקט: gcc main.c shell_functions.c -o shell
+## Usage Notes ---- אם להשאיר את זה בכלל 
+* When using the grep command, if you use in string enclose the search pattern in quotes:
+    grep "pattern1 pattern2" file.txt
+    grep pattern file.txt - work 
+    grep "pattern" file.txt - work
 
-2. הרץ את ה-shell:./shell
+* To finish input when using cat to create a file, press Ctrl+D
+* To exit the shell, type exit or press Ctrl+C
 
-## תכונות נתמכות
-* פקודות בסיסיות: cd, pwd, ls, cat, וכו'
-* הפניית פלט: ls -l > output.txt
-* צינורות: ls | grep txt
-* פקודת tree: מציגה את מבנה הספרייה בפורמט עץ
+## Project Structure
+* shell.h: Contains function declarations and structure definitions
+* shell_functions.c: Implementation of shell functions
+* main.c: Main program logic
 
-## מבנה הקוד
-* shell.h: הגדרות והצהרות פונקציות
-* shell_functions.c: מימוש הפונקציות
-* main.c: הלוגיקה הראשית של התוכנית
