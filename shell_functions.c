@@ -311,7 +311,7 @@ int shellGrep(parseInfo* info) {
     int pattern_index = 1;
     
     // בדיקה האם נתנו אופציה -c
-    if (strcmp(info->args[1], "-c") == 0) {
+    if (info->args[1][0] == '-' && info->args[1][1] == 'c' && info->args[1][2] == '\0') {
         if (info->argCount < 4) {
             printf("Usage: grep -c pattern filename\n");
             return 1;
@@ -326,36 +326,9 @@ int shellGrep(parseInfo* info) {
     // ניסיון לפתוח את הקובץ ישירות
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
-        // אם זה נכשל, ננסה לבנות נתיב מלא
-        char cwd[1024];
-        if (getcwd(cwd, sizeof(cwd)) == NULL) {
-            perror("getcwd");
-            return 1;
-        }
-        
-        // בדיקה שאין חריגה מגודל החוצץ
-        size_t cwd_len = strlen(cwd);
-        size_t filename_len = strlen(filename);
-        
-        // נבדוק שיש מספיק מקום (עם / ועם סוף מחרוזת \0)
-        if (cwd_len + filename_len + 2 > 1024) {
-            printf("Path too long: %s/%s\n", cwd, filename);
-            return 1;
-        }
-        
-        // בניית נתיב מלא לקובץ
-        char fullpath[1024];
-        strcpy(fullpath, cwd);
-        strcat(fullpath, "/");
-        strcat(fullpath, filename);
-        
-        // ניסיון לפתוח עם נתיב מלא
-        file = fopen(fullpath, "r");
-        if (file == NULL) {
-            perror("fopen");
-            printf("Failed to open file: %s\n", fullpath);
-            return 1;
-        }
+        // דיווח על השגיאה ויציאה
+        perror("fopen");
+        return 1;
     }
     
     // חיפוש בקובץ
