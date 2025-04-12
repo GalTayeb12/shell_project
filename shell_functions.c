@@ -377,7 +377,7 @@ int shellClear(parseInfo* info) {
 
 int shellGrep(parseInfo* info) {
     //Checking a minimum number of parameters
-    if (info->argCount < 2) {
+    if (info->argCount < 3) { // Changed from 2 to 3 because we need at least pattern and filename
         printf("Usage: grep [options] pattern filename\n");
         return 1;
     }
@@ -397,17 +397,26 @@ int shellGrep(parseInfo* info) {
         }
     }
     
-    // Finding the template and file name
-    char* pattern = info->args[current_arg];
-    current_arg++;
+    // The logic for handling multiple words as a pattern
+    char pattern[1024] = "";  // Buffer for combined pattern
+    char* filename = NULL;
     
-    //Checking that the last argument is the file name
-    if (current_arg >= info->argCount) {
-        printf("Missing filename argument\n");
-        return 1;
+    // Case 1: Last argument is the filename, everything before is the pattern
+    if (info->argCount - current_arg > 1) {
+        // Multiple arguments mode - combine all arguments except the last one into the pattern
+        for (int i = current_arg; i < info->argCount - 1; i++) {
+            if (i > current_arg) {
+                strcat(pattern, " "); // Add space between words
+            }
+            strcat(pattern, info->args[i]);
+        }
+        filename = info->args[info->argCount - 1];
+    } else {
+        // Simple case - just one pattern and one filename
+        strcpy(pattern, info->args[current_arg]);
+        current_arg++;
+        filename = info->args[current_arg];
     }
-    
-    char* filename = info->args[current_arg];
     
     FILE* file = fopen(filename, "r");
     if (file == NULL) {
