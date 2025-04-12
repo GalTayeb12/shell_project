@@ -299,45 +299,76 @@ int shellClear(parseInfo* info) {
 
 // מימוש פקודת grep
 int shellGrep(parseInfo* info) {
-    // בדיקת מספר פרמטרים
-    if (info->argCount < 3) {
+    // בדיקת מספר פרמטרים מינימלי
+    if (info->argCount < 2) {
         printf("Usage: grep [options] pattern filename\n");
         return 1;
     }
     
     int count_only = 0;  // האם להדפיס רק מספר שורות
-    char* pattern;
-    char* filename;
-    int pattern_index = 1;
+    int current_arg = 1;
     
     // בדיקה האם נתנו אופציה -c
-    if (info->args[1][0] == '-' && info->args[1][1] == 'c' && info->args[1][2] == '\0') {
-        if (info->argCount < 4) {
+    if (strcmp(info->args[current_arg], "-c") == 0) {
+        count_only = 1;
+        current_arg++;
+        
+        // בדיקה שיש מספיק ארגומנטים אחרי האופציה
+        if (current_arg + 1 >= info->argCount) {
             printf("Usage: grep -c pattern filename\n");
             return 1;
         }
-        count_only = 1;
-        pattern_index = 2;
     }
     
-    pattern = info->args[pattern_index];
-    filename = info->args[pattern_index + 1];
+    // מציאת התבנית ושם הקובץ
+    char* pattern = info->args[current_arg];
+    current_arg++;
     
-    // הדפסה לצורך ניפוי שגיאות
-    printf("DEBUG: Attempting to grep for pattern '%s' in file '%s'\n", pattern, filename);
-    
-    // נתיב לקובץ בספריית העבודה בה הורצה התוכנית המקורית
-    char cmd[1024];
-    sprintf(cmd, "grep %s %s %s", count_only ? "-c" : "", pattern, filename);
-    
-    // הרצת פקודת grep של המערכת
-    printf("DEBUG: Running system command: %s\n", cmd);
-    int result = system(cmd);
-    
-    if (result != 0) {
-        printf("Command failed with status %d\n", result);
+    // ארגומנט אחרון צריך להיות שם הקובץ
+    if (current_arg >= info->argCount) {
+        printf("Missing filename argument\n");
+        return 1;
     }
     
+    char* filename = info->args[current_arg];
+    
+    // ניסיון לפתוח את הקובץ
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("Failed to open file: %s\n", filename);
+        perror("fopen");
+        return 1;
+    }
+    
+    // חיפוש בקובץ
+    char line[1024];
+    int match_count = 0;
+    
+    while (fgets(line, sizeof(line), file) != NULL) {
+        // הסרת תו שורה חדשה אם קיים
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') {
+            line[len - 1] = '\0';
+            len--;
+        }
+        
+        // בדיקה האם השורה מכילה את הדפוס
+        if (strstr(line, pattern) != NULL) {
+            match_count++;
+            
+            // אם לא מבקשים רק ספירה, הדפס את השורה
+            if (!count_only) {
+                printf("%s\n", line);
+            }
+        }
+    }
+    
+    // אם מבקשים רק ספירה, הדפס את מספר השורות המתאימות
+    if (count_only) {
+        printf("%d\n", match_count);
+    }
+    
+    fclose(file);
     return 1;
 }
 
