@@ -115,6 +115,11 @@ parseInfo* parseCommand(char* cmdLine) {
 
 // מימוש הפונקציה parse כדי להתאים לקריאה ב-main.c
 parseInfo* parse(char* cmdLine) {
+    // בדיקה מיוחדת לפקודת exit
+    if (cmdLine != NULL && strcmp(cmdLine, "exit") == 0) {
+        exit(EXIT_SUCCESS);  // יציאה ישירות מהתוכנית
+    }
+    
     return parseCommand(cmdLine);
 }
 
@@ -151,9 +156,14 @@ int executeCommand(parseInfo* info) {
         return 0;
     }
     
+    // בדיקה האם זו פקודת exit
+    if (info->argCount > 0 && strcmp(info->args[0], "exit") == 0) {
+        exit(EXIT_SUCCESS);  // יציאה מהתוכנית
+    }
+    
     // בדיקה האם זו פקודה מובנית
     if (executeBuiltInCommand(info)) {
-        return 1;
+        exit(EXIT_SUCCESS);  // חשוב: יציאה מהתהליך הילד לאחר ביצוע פקודה מובנית
     }
     
     // בדיקה האם יש צינור
@@ -168,7 +178,7 @@ int executeCommand(parseInfo* info) {
 // ביצוע פקודות מובנות
 int executeBuiltInCommand(parseInfo* info) {
     if (strcmp(info->args[0], "exit") == 0) {
-        return shellExit(info);
+        exit(EXIT_SUCCESS);  // יציאה מהתוכנית
     } else if (strcmp(info->args[0], "cd") == 0) {
         return shellCd(info);
     } else if (strcmp(info->args[0], "pwd") == 0) {
@@ -182,6 +192,8 @@ int executeBuiltInCommand(parseInfo* info) {
             print_tree(".", 0);
         }
         return 1;
+    } else if (strcmp(info->args[0], "grep") == 0) {
+        return shellGrep(info);
     }
     
     return 0;  // לא פקודה מובנית
@@ -232,39 +244,31 @@ int executePipedCommand(parseInfo* info) {
 
 // ביצוע פקודה חיצונית רגילה
 int executeExternalCommand(parseInfo* info) {
-    pid_t pid = fork();
-    
-    if (pid == 0) {
-        // תהליך ילד
-        if (info->hasRedirection && info->outputFile != NULL) {
-            // הפניית פלט לקובץ
-            int fd = open(info->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-            if (fd == -1) {
-                perror("open");
-                exit(EXIT_FAILURE);
-            }
-            dup2(fd, STDOUT_FILENO);
-            close(fd);
-        }
-        
-        execvp(info->args[0], info->args);
-        perror("execvp");
-        exit(EXIT_FAILURE);
-    } else if (pid < 0) {
-        perror("fork");
-        return 0;
-    } else {
-        // תהליך האב
-        int status;
-        waitpid(pid);
-        return 1;
+    // בדיקה אם זה grep כפקודה חיצונית ויש לנו את הפונקציונליות המובנית
+    if (strcmp(info->args[0], "grep") == 0) {
+        return shellGrep(info);
     }
+    
+    if (info->hasRedirection && info->outputFile != NULL) {
+        // הפניית פלט לקובץ
+        int fd = open(info->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd == -1) {
+            perror("open");
+            exit(EXIT_FAILURE);
+        }
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+    }
+    
+    execvp(info->args[0], info->args);
+    perror("execvp");
+    exit(EXIT_FAILURE);
 }
 
 // מימוש פקודות מובנות
 
 int shellExit(parseInfo* info) {
-    exit(EXIT_SUCCESS);
+    exit(EXIT_SUCCESS);  // יציאה ישירה מהתוכנית
     return 1;  // לא יגיע לכאן
 }
 
@@ -290,6 +294,71 @@ int shellPwd(parseInfo* info) {
 
 int shellClear(parseInfo* info) {
     printf("\033[H\033[J");  // קוד ANSI לניקוי המסך
+    return 1;
+}
+
+// מימוש פקודת grep
+int shellGrep(parseInfo* info) {
+    // בדיקת מספר פרמטרים
+    if (info->argCount < 3) {
+        printf("Usage: grep [options] pattern filename\n");
+        return 1;
+    }
+    
+    int count_only = 0;  // האם להדפיס רק מספר שורות
+    char* pattern;
+    char* filename;
+    int pattern_index = 1;
+    
+    // בדיקה האם נתנו אופציה -c
+    if (strcmp(info->args[1], "-c") == 0) {
+        if (info->argCount < 4) {
+            printf("Usage: grep -c pattern filename\n");
+            return 1;
+        }
+        count_only = 1;
+        pattern_index = 2;
+    }
+    
+    pattern = info->args[pattern_index];
+    filename = info->args[pattern_index + 1];
+    
+    // פתיחת הקובץ
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        perror("fopen");
+        return 1;
+    }
+    
+    // חיפוש בקובץ
+    char line[1024];
+    int match_count = 0;
+    
+    while (fgets(line, sizeof(line), file) != NULL) {
+        // הסרת תו שורה חדשה אם קיים
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') {
+            line[len - 1] = '\0';
+            len--;
+        }
+        
+        // בדיקה האם השורה מכילה את הדפוס
+        if (strstr(line, pattern) != NULL) {
+            match_count++;
+            
+            // אם לא מבקשים רק ספירה, הדפס את השורה
+            if (!count_only) {
+                printf("%s\n", line);
+            }
+        }
+    }
+    
+    // אם מבקשים רק ספירה, הדפס את מספר השורות המתאימות
+    if (count_only) {
+        printf("%d\n", match_count);
+    }
+    
+    fclose(file);
     return 1;
 }
 

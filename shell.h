@@ -47,6 +47,7 @@ int shellExit(parseInfo* info);
 int shellCd(parseInfo* info);
 int shellPwd(parseInfo* info);
 int shellClear(parseInfo* info);
+int shellGrep(parseInfo* info);
 
 // פונקציה לביצוע פקודת tree
 void print_tree(const char* path, int level);
