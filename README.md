@@ -1,10 +1,10 @@
 ## Getting Started
 ## Prerequisites
     Before building the shell, make sure you have the readline development library installed:
-        bashsudo apt-get install libreadline-dev
+        bash sudo apt-get install libreadline-dev
 ## Building the Project
 * Compile the source code using GCC:
-    bashgcc main.c shell_functions.c -o shell
+    bash gcc main.c shell_functions.c -o shell
 * Running the Shell
 Execute the compiled binary:
     ./shell

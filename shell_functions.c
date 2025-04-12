@@ -190,15 +190,15 @@ parseInfo* parseCommand(char* cmdLine) {
 
 
 parseInfo* parse(char* cmdLine) {
-    if (cmdLine != NULL && strcmp(cmdLine, "exit") == 0) {
-        exit(EXIT_SUCCESS);  // Exit directly from the program
+    if (cmdLine != NULL && (strcmp(cmdLine, "exit") == 0 || 
+                            strncmp(cmdLine, "exit ", 5) == 0)) {
+        exit(EXIT_SUCCESS);  
     }
     
     parseInfo* info = parseCommand(cmdLine);
     
     if (info->argCount > 0 && strcmp(info->args[0], "cd") == 0) {
         shellCd(info);
-        // מסמן שהפקודה כבר בוצעה
         strcpy(info->args[0], "_CD_EXECUTED_");
     }
     
