@@ -323,43 +323,21 @@ int shellGrep(parseInfo* info) {
     pattern = info->args[pattern_index];
     filename = info->args[pattern_index + 1];
     
-    // ניסיון לפתוח את הקובץ ישירות
-    FILE* file = fopen(filename, "r");
-    if (file == NULL) {
-        // דיווח על השגיאה ויציאה
-        perror("fopen");
-        return 1;
+    // הדפסה לצורך ניפוי שגיאות
+    printf("DEBUG: Attempting to grep for pattern '%s' in file '%s'\n", pattern, filename);
+    
+    // נתיב לקובץ בספריית העבודה בה הורצה התוכנית המקורית
+    char cmd[1024];
+    sprintf(cmd, "grep %s %s %s", count_only ? "-c" : "", pattern, filename);
+    
+    // הרצת פקודת grep של המערכת
+    printf("DEBUG: Running system command: %s\n", cmd);
+    int result = system(cmd);
+    
+    if (result != 0) {
+        printf("Command failed with status %d\n", result);
     }
     
-    // חיפוש בקובץ
-    char line[1024];
-    int match_count = 0;
-    
-    while (fgets(line, sizeof(line), file) != NULL) {
-        // הסרת תו שורה חדשה אם קיים
-        size_t len = strlen(line);
-        if (len > 0 && line[len - 1] == '\n') {
-            line[len - 1] = '\0';
-            len--;
-        }
-        
-        // בדיקה האם השורה מכילה את הדפוס
-        if (strstr(line, pattern) != NULL) {
-            match_count++;
-            
-            // אם לא מבקשים רק ספירה, הדפס את השורה
-            if (!count_only) {
-                printf("%s\n", line);
-            }
-        }
-    }
-    
-    // אם מבקשים רק ספירה, הדפס את מספר השורות המתאימות
-    if (count_only) {
-        printf("%d\n", match_count);
-    }
-    
-    fclose(file);
     return 1;
 }
 
