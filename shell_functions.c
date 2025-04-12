@@ -243,10 +243,6 @@ int executeCommand(parseInfo* info) {
         exit(EXIT_SUCCESS);  // End of the child process
     }
     
-    if (info->argCount > 0 && strcmp(info->args[0], "exit") == 0) {
-        exit(EXIT_SUCCESS);  
-    }
-    
     //Checking if this is a built-in command
     if (executeBuiltInCommand(info)) {
         exit(EXIT_SUCCESS);  
