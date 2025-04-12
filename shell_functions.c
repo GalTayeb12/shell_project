@@ -323,11 +323,31 @@ int shellGrep(parseInfo* info) {
     pattern = info->args[pattern_index];
     filename = info->args[pattern_index + 1];
     
-    // פתיחת הקובץ
-    FILE* file = fopen(filename, "r");
-    if (file == NULL) {
-        perror("fopen");
+    // קבלת הנתיב המלא של הספרייה הנוכחית
+    char cwd[1024];
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        perror("getcwd");
         return 1;
+    }
+    
+    // בניית נתיב מלא לקובץ אם הוא לא מתחיל ב-/
+    char fullpath[1024];
+    if (filename[0] != '/') {
+        snprintf(fullpath, sizeof(fullpath), "%s/%s", cwd, filename);
+    } else {
+        strncpy(fullpath, filename, sizeof(fullpath));
+    }
+    
+    // פתיחת הקובץ
+    FILE* file = fopen(fullpath, "r");
+    if (file == NULL) {
+        // ננסה לפתוח שוב עם השם המקורי למקרה שהנתיב הוא יחסי
+        file = fopen(filename, "r");
+        if (file == NULL) {
+            perror("fopen");
+            printf("Failed to open file: %s or %s\n", fullpath, filename);
+            return 1;
+        }
     }
     
     // חיפוש בקובץ
