@@ -200,7 +200,16 @@ parseInfo* parse(char* cmdLine) {
         exit(EXIT_SUCCESS);  // יציאה ישירות מהתוכנית
     }
     
-    return parseCommand(cmdLine);
+    parseInfo* info = parseCommand(cmdLine);
+    
+    // בדיקה אם זו פקודת cd בשלב הפרסור
+    if (info->argCount > 0 && strcmp(info->args[0], "cd") == 0) {
+        shellCd(info);
+        // מסמן שהפקודה כבר בוצעה
+        strcpy(info->args[0], "_CD_EXECUTED_");
+    }
+    
+    return info;
 }
 
 // שחרור זיכרון של מבנה parseInfo
@@ -234,6 +243,11 @@ void freeParseInfo(parseInfo* info) {
 int executeCommand(parseInfo* info) {
     if (info == NULL || info->argCount == 0) {
         return 0;
+    }
+    
+    // בדיקה האם זו פקודת cd שכבר בוצעה
+    if (strcmp(info->args[0], "_CD_EXECUTED_") == 0) {
+        exit(EXIT_SUCCESS);  // סיום התהליך הילד מכיוון שהפקודה כבר בוצעה באב
     }
     
     // בדיקה האם זו פקודת exit
