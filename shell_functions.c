@@ -6,7 +6,6 @@ char* readCommand() {
     size_t bufsize = 0;
     getline(&buffer, &bufsize, stdin);
     
-    // הסרת תו שורה חדשה
     if (buffer[strlen(buffer) - 1] == '\n') {
         buffer[strlen(buffer) - 1] = '\0';
     }
@@ -375,18 +374,15 @@ int shellClear(parseInfo* info) {
     return 1;
 }
 
-// הוסף פונקציה חדשה להרחבת תבניות wildcard
 char** expandWildcards(char* pattern, int* count) {
     *count = 0;
     
-    // פתיחת הספרייה הנוכחית
     DIR* dir = opendir(".");
     if (!dir) {
         perror("opendir");
         return NULL;
     }
     
-    // מספר מקצימלי של התאמות בהתחלה
     int capacity = 10;
     char** matches = malloc(capacity * sizeof(char*));
     if (!matches) {
@@ -396,14 +392,13 @@ char** expandWildcards(char* pattern, int* count) {
     
     struct dirent* entry;
     while ((entry = readdir(dir)) != NULL) {
-        // בדיקה אם השם מתאים לתבנית
+        //Checking if the name matches the template
         if (wildcardMatch(entry->d_name, pattern)) {
-            // הגדלת המערך במידת הצורך
             if (*count >= capacity) {
                 capacity *= 2;
                 char** new_matches = realloc(matches, capacity * sizeof(char*));
                 if (!new_matches) {
-                    // שחרור הזיכרון במקרה של כישלון
+                    //Freeing memory in case of failure
                     for (int i = 0; i < *count; i++) {
                         free(matches[i]);
                     }
@@ -415,7 +410,7 @@ char** expandWildcards(char* pattern, int* count) {
                 matches = new_matches;
             }
             
-            // הוספת השם המתאים למערך
+            //Adding the appropriate name to the array
             matches[*count] = strdup(entry->d_name);
             (*count)++;
         }
@@ -423,7 +418,7 @@ char** expandWildcards(char* pattern, int* count) {
     
     closedir(dir);
     
-    // אם אין התאמות, החזר את התבנית המקורית
+    // If there are no matches, return the original template.
     if (*count == 0) {
         matches[0] = strdup(pattern);
         *count = 1;
@@ -432,21 +427,14 @@ char** expandWildcards(char* pattern, int* count) {
     return matches;
 }
 
-// פונקציה עזר לבדיקת התאמה של תבנית wildcard
 int wildcardMatch(const char* string, const char* pattern) {
-    // אם הדפוס הגיע לסופו, אנחנו מצפים שגם המחרוזת הגיעה לסופה
     if (*pattern == '\0') {
         return *string == '\0';
     }
     
-    // אם מצאנו כוכבית בדפוס
     if (*pattern == '*') {
-        // קידום מעבר לכוכבית
         pattern++;
         
-        // הכוכבית יכולה להתאים לכל אורך מחרוזת, כולל 0
-        // לכן אנחנו מנסים להתאים את שאר הדפוס לשאר המחרוזת
-        // באופן רקורסיבי עבור כל אורך אפשרי
         while (*string) {
             if (wildcardMatch(string, pattern)) {
                 return 1;
@@ -454,21 +442,16 @@ int wildcardMatch(const char* string, const char* pattern) {
             string++;
         }
         
-        // אם לא מצאנו התאמה בשום אורך, בדוק אם שאר הדפוס יכול להתאים למחרוזת ריקה
         return wildcardMatch(string, pattern);
     }
     
-    // אם מצאנו סימן שאלה בדפוס או שהתו הנוכחי בדפוס מתאים לתו הנוכחי במחרוזת
     if (*pattern == '?' || *pattern == *string) {
-        // קידום בשני הצדדים והמשך ההתאמה
         return wildcardMatch(string + 1, pattern + 1);
     }
     
-    // אין התאמה
     return 0;
 }
 
-// פונקציה המעדכנת את shellGrep לתמיכה בwildcards
 int shellGrep(parseInfo* info) {
     //Checking a minimum number of parameters
     if (info->argCount < 3) { // Changed from 2 to 3 because we need at least pattern and filename
@@ -494,12 +477,12 @@ int shellGrep(parseInfo* info) {
     // Get the pattern
     char pattern[1024] = "";
     
-    // חיפוש אחר ה-wildcard
-    int pattern_args = 1;  // מספר הארגומנטים ששייכים לדפוס החיפוש
-    int has_wildcard = 0;  // האם יש wildcard בארגומנטים
-    int wildcard_arg = 0;  // באיזה ארגומנט נמצא ה-wildcard
+    //  searching about wildcard
+    int pattern_args = 1; 
+    int has_wildcard = 0;  
+    int wildcard_arg = 0; 
     
-    // בדיקה האם יש wildcard באחד הארגומנטים
+    //Checking if there is a wildcard in one of the arguments
     for (int i = current_arg; i < info->argCount; i++) {
         if (strchr(info->args[i], '*') != NULL || strchr(info->args[i], '?') != NULL) {
             has_wildcard = 1;
@@ -508,15 +491,13 @@ int shellGrep(parseInfo* info) {
         }
     }
     
-    // אם יש wildcard, אז אנחנו מניחים שהדפוס הוא הארגומנט לפני ה-wildcard
     if (has_wildcard) {
         if (wildcard_arg == current_arg) {
-            // אם ה-wildcard הוא בארגומנט הראשון, זה מצב לא תקין
+            //Checking if a wildcard is in the first argumentת- invalid
             printf("Error: pattern must come before filename wildcards\n");
             return 1;
         }
-        
-        // שמירת הדפוס - כל מה שבין הדגל והwildcard
+
         for (int i = current_arg; i < wildcard_arg; i++) {
             if (i > current_arg) {
                 strcat(pattern, " ");
@@ -524,7 +505,6 @@ int shellGrep(parseInfo* info) {
             strcat(pattern, info->args[i]);
         }
         
-        // הרחבת הwildcard
         int file_count = 0;
         char** files = expandWildcards(info->args[wildcard_arg], &file_count);
         
@@ -533,7 +513,6 @@ int shellGrep(parseInfo* info) {
             return 1;
         }
         
-        // ביצוע grep על כל קובץ שתואם
         int total_matches = 0;
         for (int i = 0; i < file_count; i++) {
             FILE* file = fopen(files[i], "r");
@@ -568,7 +547,6 @@ int shellGrep(parseInfo* info) {
             printf("%d\n", total_matches);
         }
         
-        // שחרור זיכרון
         for (int i = 0; i < file_count; i++) {
             free(files[i]);
         }
@@ -576,7 +554,6 @@ int shellGrep(parseInfo* info) {
         
         return 1;
     } else {
-        // מקרה רגיל ללא wildcards
         // The logic for handling multiple words as a pattern
         strcpy(pattern, "");  // Reset pattern
         char* filename = NULL;
