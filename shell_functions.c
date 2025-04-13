@@ -375,6 +375,100 @@ int shellClear(parseInfo* info) {
     return 1;
 }
 
+// הוסף פונקציה חדשה להרחבת תבניות wildcard
+char** expandWildcards(char* pattern, int* count) {
+    *count = 0;
+    
+    // פתיחת הספרייה הנוכחית
+    DIR* dir = opendir(".");
+    if (!dir) {
+        perror("opendir");
+        return NULL;
+    }
+    
+    // מספר מקצימלי של התאמות בהתחלה
+    int capacity = 10;
+    char** matches = malloc(capacity * sizeof(char*));
+    if (!matches) {
+        closedir(dir);
+        return NULL;
+    }
+    
+    struct dirent* entry;
+    while ((entry = readdir(dir)) != NULL) {
+        // בדיקה אם השם מתאים לתבנית
+        if (wildcardMatch(entry->d_name, pattern)) {
+            // הגדלת המערך במידת הצורך
+            if (*count >= capacity) {
+                capacity *= 2;
+                char** new_matches = realloc(matches, capacity * sizeof(char*));
+                if (!new_matches) {
+                    // שחרור הזיכרון במקרה של כישלון
+                    for (int i = 0; i < *count; i++) {
+                        free(matches[i]);
+                    }
+                    free(matches);
+                    closedir(dir);
+                    *count = 0;
+                    return NULL;
+                }
+                matches = new_matches;
+            }
+            
+            // הוספת השם המתאים למערך
+            matches[*count] = strdup(entry->d_name);
+            (*count)++;
+        }
+    }
+    
+    closedir(dir);
+    
+    // אם אין התאמות, החזר את התבנית המקורית
+    if (*count == 0) {
+        matches[0] = strdup(pattern);
+        *count = 1;
+    }
+    
+    return matches;
+}
+
+// פונקציה עזר לבדיקת התאמה של תבנית wildcard
+int wildcardMatch(const char* string, const char* pattern) {
+    // אם הדפוס הגיע לסופו, אנחנו מצפים שגם המחרוזת הגיעה לסופה
+    if (*pattern == '\0') {
+        return *string == '\0';
+    }
+    
+    // אם מצאנו כוכבית בדפוס
+    if (*pattern == '*') {
+        // קידום מעבר לכוכבית
+        pattern++;
+        
+        // הכוכבית יכולה להתאים לכל אורך מחרוזת, כולל 0
+        // לכן אנחנו מנסים להתאים את שאר הדפוס לשאר המחרוזת
+        // באופן רקורסיבי עבור כל אורך אפשרי
+        while (*string) {
+            if (wildcardMatch(string, pattern)) {
+                return 1;
+            }
+            string++;
+        }
+        
+        // אם לא מצאנו התאמה בשום אורך, בדוק אם שאר הדפוס יכול להתאים למחרוזת ריקה
+        return wildcardMatch(string, pattern);
+    }
+    
+    // אם מצאנו סימן שאלה בדפוס או שהתו הנוכחי בדפוס מתאים לתו הנוכחי במחרוזת
+    if (*pattern == '?' || *pattern == *string) {
+        // קידום בשני הצדדים והמשך ההתאמה
+        return wildcardMatch(string + 1, pattern + 1);
+    }
+    
+    // אין התאמה
+    return 0;
+}
+
+// פונקציה המעדכנת את shellGrep לתמיכה בwildcards
 int shellGrep(parseInfo* info) {
     //Checking a minimum number of parameters
     if (info->argCount < 3) { // Changed from 2 to 3 because we need at least pattern and filename
@@ -397,64 +491,151 @@ int shellGrep(parseInfo* info) {
         }
     }
     
-    // The logic for handling multiple words as a pattern
-    char pattern[1024] = "";  // Buffer for combined pattern
-    char* filename = NULL;
+    // Get the pattern
+    char pattern[1024] = "";
     
-    // Case 1: Last argument is the filename, everything before is the pattern
-    if (info->argCount - current_arg > 1) {
-        // Multiple arguments mode - combine all arguments except the last one into the pattern
-        for (int i = current_arg; i < info->argCount - 1; i++) {
+    // חיפוש אחר ה-wildcard
+    int pattern_args = 1;  // מספר הארגומנטים ששייכים לדפוס החיפוש
+    int has_wildcard = 0;  // האם יש wildcard בארגומנטים
+    int wildcard_arg = 0;  // באיזה ארגומנט נמצא ה-wildcard
+    
+    // בדיקה האם יש wildcard באחד הארגומנטים
+    for (int i = current_arg; i < info->argCount; i++) {
+        if (strchr(info->args[i], '*') != NULL || strchr(info->args[i], '?') != NULL) {
+            has_wildcard = 1;
+            wildcard_arg = i;
+            break;
+        }
+    }
+    
+    // אם יש wildcard, אז אנחנו מניחים שהדפוס הוא הארגומנט לפני ה-wildcard
+    if (has_wildcard) {
+        if (wildcard_arg == current_arg) {
+            // אם ה-wildcard הוא בארגומנט הראשון, זה מצב לא תקין
+            printf("Error: pattern must come before filename wildcards\n");
+            return 1;
+        }
+        
+        // שמירת הדפוס - כל מה שבין הדגל והwildcard
+        for (int i = current_arg; i < wildcard_arg; i++) {
             if (i > current_arg) {
-                strcat(pattern, " "); // Add space between words
+                strcat(pattern, " ");
             }
             strcat(pattern, info->args[i]);
         }
-        filename = info->args[info->argCount - 1];
-    } else {
-        // Simple case - just one pattern and one filename
-        strcpy(pattern, info->args[current_arg]);
-        current_arg++;
-        filename = info->args[current_arg];
-    }
-    
-    FILE* file = fopen(filename, "r");
-    if (file == NULL) {
-        printf("Failed to open file: %s\n", filename);
-        perror("fopen");
-        return 1;
-    }
-    
-    // search in file
-    char line[1024];
-    int match_count = 0;
-    
-    while (fgets(line, sizeof(line), file) != NULL) {
-        //Remove newline character if present
-        size_t len = strlen(line);
-        if (len > 0 && line[len - 1] == '\n') {
-            line[len - 1] = '\0';
-            len--;
+        
+        // הרחבת הwildcard
+        int file_count = 0;
+        char** files = expandWildcards(info->args[wildcard_arg], &file_count);
+        
+        if (files == NULL || file_count == 0) {
+            printf("No matching files found\n");
+            return 1;
         }
         
-        //Checking whether the line contains the pattern
-        if (strstr(line, pattern) != NULL) {
-            match_count++;
+        // ביצוע grep על כל קובץ שתואם
+        int total_matches = 0;
+        for (int i = 0; i < file_count; i++) {
+            FILE* file = fopen(files[i], "r");
+            if (file == NULL) {
+                printf("Failed to open file: %s\n", files[i]);
+                continue;
+            }
             
-            // Print a line if there is no request for counting
-            if (!count_only) {
-                printf("%s\n", line);
+            char line[1024];
+            int file_matches = 0;
+            
+            while (fgets(line, sizeof(line), file) != NULL) {
+                size_t len = strlen(line);
+                if (len > 0 && line[len - 1] == '\n') {
+                    line[len - 1] = '\0';
+                }
+                
+                if (strstr(line, pattern) != NULL) {
+                    file_matches++;
+                    
+                    if (!count_only) {
+                        printf("%s: %s\n", files[i], line);
+                    }
+                }
+            }
+            
+            total_matches += file_matches;
+            fclose(file);
+        }
+        
+        if (count_only) {
+            printf("%d\n", total_matches);
+        }
+        
+        // שחרור זיכרון
+        for (int i = 0; i < file_count; i++) {
+            free(files[i]);
+        }
+        free(files);
+        
+        return 1;
+    } else {
+        // מקרה רגיל ללא wildcards
+        // The logic for handling multiple words as a pattern
+        strcpy(pattern, "");  // Reset pattern
+        char* filename = NULL;
+        
+        // Case 1: Last argument is the filename, everything before is the pattern
+        if (info->argCount - current_arg > 1) {
+            // Multiple arguments mode - combine all arguments except the last one into the pattern
+            for (int i = current_arg; i < info->argCount - 1; i++) {
+                if (i > current_arg) {
+                    strcat(pattern, " "); // Add space between words
+                }
+                strcat(pattern, info->args[i]);
+            }
+            filename = info->args[info->argCount - 1];
+        } else {
+            // Simple case - just one pattern and one filename
+            strcpy(pattern, info->args[current_arg]);
+            current_arg++;
+            filename = info->args[current_arg];
+        }
+        
+        FILE* file = fopen(filename, "r");
+        if (file == NULL) {
+            printf("Failed to open file: %s\n", filename);
+            perror("fopen");
+            return 1;
+        }
+        
+        // search in file
+        char line[1024];
+        int match_count = 0;
+        
+        while (fgets(line, sizeof(line), file) != NULL) {
+            //Remove newline character if present
+            size_t len = strlen(line);
+            if (len > 0 && line[len - 1] == '\n') {
+                line[len - 1] = '\0';
+                len--;
+            }
+            
+            //Checking whether the line contains the pattern
+            if (strstr(line, pattern) != NULL) {
+                match_count++;
+                
+                // Print a line if there is no request for counting
+                if (!count_only) {
+                    printf("%s\n", line);
+                }
             }
         }
+        
+        // If only a count is requested, print the number of matching lines
+        if (count_only) {
+            printf("%d\n", match_count);
+        }
+        
+        fclose(file);
+        return 1;
     }
-    
-    // If only a count is requested, print the number of matching lines
-    if (count_only) {
-        printf("%d\n", match_count);
-    }
-    
-    fclose(file);
-    return 1;
 }
 
 void print_tree(const char* path, int level) {

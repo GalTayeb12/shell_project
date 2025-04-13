@@ -46,6 +46,8 @@ int shellExit(parseInfo* info);
 int shellCd(parseInfo* info);
 int shellPwd(parseInfo* info);
 int shellClear(parseInfo* info);
+int wildcardMatch(const char* string, const char* pattern);
+char** expandWildcards(char* pattern, int* count);
 int shellGrep(parseInfo* info);
 
 // Function to execute a tree command
